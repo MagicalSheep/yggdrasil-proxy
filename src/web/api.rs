@@ -1,0 +1,9 @@
+pub static AUTHENTICATE: &str = "/authserver/authenticate";
+pub static REFRESH: &str = "/authserver/refresh";
+pub static VALIDATE: &str = "/authserver/validate";
+pub static INVALIDATE: &str = "/authserver/invalidate";
+pub static SIGN_OUT: &str = "/authserver/signout";
+pub static JOIN: &str = "/sessionserver/session/minecraft/join";
+pub static HAS_JOIN: &str = "/sessionserver/session/minecraft/hasJoined";
+pub static PROFILE: &str = "/sessionserver/session/minecraft/profile/";
+pub static PROFILES: &str = "/api/profiles/minecraft";
