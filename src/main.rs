@@ -122,7 +122,7 @@ fn load_public_key() -> String {
 }
 
 fn init_log() {
-    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "debug");
+    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
     env_logger::Builder::from_env(env)
         .format(|buf, record| {
             let level = { buf.default_styled_level(record.level()) };

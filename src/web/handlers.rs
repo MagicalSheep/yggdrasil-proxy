@@ -15,7 +15,7 @@ use crate::proxy::proxy::{authenticate_proxy, has_join_proxy, profile_proxy, pro
 use crate::model::reply::{AuthenticateReply, CertificatesReply, ErrorReply, RefreshReply};
 use crate::model::request::{AuthenticateRequest, JoinQuery, JoinRequest, LogoutRequest, ProfileQuery, RefreshRequest, ValidateRequest};
 use crate::proxy::pre_proxy::{has_join_pre_proxy, validate_pre_proxy, join_pre_proxy, profile_pre_proxy, profiles_pre_proxy, refresh_pre_proxy};
-use crate::utils::signature;
+use crate::utils::{decode_token, signature};
 use crate::web::api::{AUTHENTICATE, HAS_JOIN, INVALIDATE, JOIN, PROFILE, PROFILES, REFRESH, SIGN_OUT, VALIDATE};
 
 /// Send authenticate request to all backend servers, and ignore those unavailable replies.
@@ -292,7 +292,7 @@ pub async fn meta() -> Result<impl Reply, Rejection> {
 /// Just create a random key pair.
 /// This behaviour maybe changed if Minecraft updates the use of key pair in the future.
 /// (Maybe implement the report system api)
-pub async fn certificates(_: String) -> Result<impl Reply, Rejection> {
+pub async fn certificates(token: String) -> Result<impl Reply, Rejection> {
     match CONFIG.meta.enable_profile_key {
         Some(c) => {
             if !c {
@@ -302,6 +302,10 @@ pub async fn certificates(_: String) -> Result<impl Reply, Rejection> {
         None => {
             return reject!(CustomError::HttpException(StatusCode::NOT_FOUND, "enable_profile_key is not enabled".to_string()));
         }
+    }
+    if let Err(_) = decode_token(&token[7..token.len() - 1]) {
+        // Work as Mojang
+        return Ok(warp::reply::with_status(warp::reply::json(&String::new()), StatusCode::NO_CONTENT));
     }
 
     let key_pair = match KeyPair::new() {
