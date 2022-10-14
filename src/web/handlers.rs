@@ -2,18 +2,20 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::error::Error;
 use std::sync::{Arc};
+use chrono::{Duration, Utc};
 use futures::future::join_all;
 use log::{debug, warn};
 use reqwest::Client;
 use warp::{Rejection, Reply};
 use warp::http::StatusCode;
 use crate::{CONFIG, Meta, reject};
-use crate::model::Profile;
+use crate::model::{KeyPair, Profile};
 use crate::model::errors::CustomError;
 use crate::proxy::proxy::{authenticate_proxy, has_join_proxy, profile_proxy, profiles_proxy, refresh_proxy};
-use crate::model::reply::{AuthenticateReply, ErrorReply, RefreshReply};
+use crate::model::reply::{AuthenticateReply, CertificatesReply, ErrorReply, RefreshReply};
 use crate::model::request::{AuthenticateRequest, JoinQuery, JoinRequest, LogoutRequest, ProfileQuery, RefreshRequest, ValidateRequest};
 use crate::proxy::pre_proxy::{has_join_pre_proxy, validate_pre_proxy, join_pre_proxy, profile_pre_proxy, profiles_pre_proxy, refresh_pre_proxy};
+use crate::utils::signature;
 use crate::web::api::{AUTHENTICATE, HAS_JOIN, INVALIDATE, JOIN, PROFILE, PROFILES, REFRESH, SIGN_OUT, VALIDATE};
 
 /// Send authenticate request to all backend servers, and ignore those unavailable replies.
@@ -285,6 +287,39 @@ pub async fn profiles(request: Vec<String>) -> Result<impl Reply, Rejection> {
 pub async fn meta() -> Result<impl Reply, Rejection> {
     let config = &*CONFIG;
     Ok(warp::reply::with_status(warp::reply::json(&Meta::from(config)), StatusCode::OK))
+}
+
+/// Just create a random key pair.
+/// This behaviour maybe changed if Minecraft updates the use of key pair in the future.
+/// (Maybe implement the report system api)
+pub async fn certificates(_: String) -> Result<impl Reply, Rejection> {
+    match CONFIG.meta.enable_profile_key {
+        Some(c) => {
+            if !c {
+                return reject!(CustomError::HttpException(StatusCode::NOT_FOUND, "enable_profile_key is not enabled".to_string()));
+            }
+        }
+        None => {
+            return reject!(CustomError::HttpException(StatusCode::NOT_FOUND, "enable_profile_key is not enabled".to_string()));
+        }
+    }
+
+    let key_pair = match KeyPair::new() {
+        Ok(res) => { res }
+        Err(err) => { return reject!(err); }
+    };
+    let now = Utc::now();
+    let expires_at = now + Duration::hours(48);
+    let public_key_signature = signature(expires_at.timestamp_millis().to_string() + &key_pair.public_key);
+    let ret = CertificatesReply {
+        expires_at: expires_at.format("%+").to_string(),
+        key_pair,
+        public_key_signature_v2: public_key_signature.clone(),
+        public_key_signature,
+        refreshed_after: (now + Duration::hours(36)).format("%+").to_string(),
+    };
+    debug!("{:#?}", ret);
+    Ok(warp::reply::with_status(warp::reply::json(&ret), StatusCode::OK))
 }
 
 pub async fn err_handle(err: Rejection) -> Result<impl Reply, Infallible> {

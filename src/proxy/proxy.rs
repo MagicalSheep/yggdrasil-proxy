@@ -6,8 +6,9 @@ use sea_orm::ActiveValue;
 use crate::model::{AccessClaims, Profile, User};
 use crate::model::errors::CustomError;
 use crate::model::reply::{AuthenticateReply, RefreshReply};
-use crate::proxy::{create_token, translate};
+use crate::proxy::translate;
 use crate::repository::{find_by_backend_and_uuid, save_profile};
+use crate::utils::create_token;
 
 pub async fn authenticate_proxy(reply: HashMap<String, AuthenticateReply>) -> Result<AuthenticateReply, CustomError> {
     if reply.is_empty() {

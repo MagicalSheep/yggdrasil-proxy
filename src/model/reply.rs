@@ -1,4 +1,4 @@
-use crate::model::{Profile, User};
+use crate::model::{KeyPair, Profile, User};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,6 +25,20 @@ pub struct RefreshReply {
     pub selected_profile: Option<Profile>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<User>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CertificatesReply {
+    #[serde(rename = "expiresAt")]
+    pub expires_at: String,
+    #[serde(rename = "keyPair")]
+    pub key_pair: KeyPair,
+    #[serde(rename = "publicKeySignature")]
+    pub public_key_signature: String,
+    #[serde(rename = "publicKeySignatureV2")]
+    pub public_key_signature_v2: String,
+    #[serde(rename = "refreshedAfter")]
+    pub refreshed_after: String
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -3,8 +3,12 @@ pub mod request;
 pub mod errors;
 
 use std::collections::HashMap;
+use reqwest::StatusCode;
+use rsa::{RsaPrivateKey, RsaPublicKey};
+use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
 use serde_derive::{Deserialize, Serialize};
-use crate::{IMPLEMENTATION_NAME, PUBLIC_KEY, VERSION};
+use crate::{IMPLEMENTATION_NAME, LineEnding, PUBLIC_KEY, VERSION};
+use crate::model::errors::CustomError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccessClaims {
@@ -13,6 +17,14 @@ pub struct AccessClaims {
     pub uuids: HashMap<String, String>,
     pub selected: HashMap<String, bool>,
     pub selected_uuid: Option<String>, // for proxy server
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KeyPair {
+    #[serde(rename = "privateKey")]
+    pub private_key: String,
+    #[serde(rename = "publicKey")]
+    pub public_key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -168,5 +180,50 @@ impl Config {
             port: 8080,
             backends,
         }
+    }
+}
+
+impl KeyPair {
+    pub fn new() -> Result<KeyPair, CustomError> {
+        let mut rng = rand::thread_rng();
+        let private_key = match RsaPrivateKey::new(&mut rng, 2048) {
+            Ok(res) => { res }
+            Err(err) => {
+                return Err(
+                    CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err)));
+            }
+        };
+        let public_key = match RsaPublicKey::from(private_key.clone()).to_public_key_der() {
+            Ok(res) => { res }
+            Err(err) => {
+                return Err(
+                    CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err)));
+            }
+        };
+        let public_key = match public_key.to_pem("RSA PUBLIC KEY", LineEnding::default()) {
+            Ok(res) => { res }
+            Err(err) => {
+                return Err(
+                    CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err)));
+            }
+        };
+        let private_key = match private_key.to_pkcs8_der() {
+            Ok(res) => { res }
+            Err(err) => {
+                return Err(
+                    CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err)));
+            }
+        };
+        let private_key = match private_key.to_pem("RSA PRIVATE KEY", LineEnding::default()) {
+            Ok(res) => { res.to_string() }
+            Err(err) => {
+                return Err(
+                    CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err)));
+            }
+        };
+        Ok(KeyPair {
+            private_key,
+            public_key,
+        })
     }
 }

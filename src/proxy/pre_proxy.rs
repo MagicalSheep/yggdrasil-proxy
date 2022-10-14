@@ -4,8 +4,8 @@ use warp::hyper::StatusCode;
 use crate::model::{AccessClaims, Profile, Property};
 use crate::model::errors::CustomError;
 use crate::model::request::{JoinQuery, JoinRequest, ProfileQuery, RefreshRequest, ValidateRequest};
-use crate::proxy::decode_token;
 use crate::repository::{find_by_name, find_by_uuid};
+use crate::utils::decode_token;
 
 pub async fn refresh_pre_proxy(request: RefreshRequest) -> Result<(String, AccessClaims, RefreshRequest), CustomError> {
     // check token

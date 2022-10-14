@@ -1,45 +1,21 @@
 pub mod proxy;
 pub mod pre_proxy;
 
-use base64::{decode, encode};
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use base64::decode;
 use log::debug;
 use reqwest::{Client, StatusCode};
-use rsa::pkcs1v15::{SigningKey, VerifyingKey};
+use rsa::pkcs1v15::VerifyingKey;
 use rsa::pkcs8::DecodePublicKey;
 use rsa::RsaPublicKey;
 use sea_orm::ActiveValue;
 use sha1::Sha1;
+use signature::Verifier;
 use uuid::Uuid;
-use crate::{CONFIG, PRIVATE_KEY};
+use crate::CONFIG;
 use crate::model::errors::CustomError;
-use crate::model::{AccessClaims, Meta, Profile, Property};
-use signature::{Signature, Signer, Verifier};
+use crate::model::{Meta, Profile, Property};
 use crate::repository::{find_by_backend_and_uuid, find_by_uuid, save_profile};
-
-/// Create a new proxy server access token
-pub fn create_token(claims: &AccessClaims) -> String {
-    jsonwebtoken::encode(
-        &Header::default(),
-        claims,
-        &EncodingKey::from_secret(CONFIG.secret.as_ref()),
-    ).unwrap()
-}
-
-/// Decode access token provided by proxy server
-pub fn decode_token(token: &str) -> Result<AccessClaims, CustomError> {
-    match jsonwebtoken::decode::<AccessClaims>(
-        token,
-        &DecodingKey::from_secret(CONFIG.secret.as_ref()),
-        &Validation::new(Algorithm::HS256)) {
-        Ok(val) => {
-            Ok(val.claims)
-        }
-        Err(_) => {
-            Err(CustomError::ForbiddenOperationException(StatusCode::FORBIDDEN, "Invalid token.".to_string()))
-        }
-    }
-}
+use crate::utils::signature;
 
 /// Validate signature from backend server
 async fn validate_sign(src_backend: &str, sign: &str, content: &str) -> bool {
@@ -80,14 +56,6 @@ async fn validate_sign(src_backend: &str, sign: &str, content: &str) -> bool {
             false
         }
     }
-}
-
-/// Get a signature using the proxy server private key, and encode it with Base64
-fn signature(content: String) -> String {
-    let private_key = &*PRIVATE_KEY;
-    let signing_key = SigningKey::<Sha1>::new_with_prefix(private_key.clone());
-    let sign = signing_key.sign(content.as_bytes());
-    encode(sign.as_bytes())
 }
 
 /// Validate and resign signature for properties.

@@ -3,6 +3,7 @@ mod proxy;
 mod entity;
 mod web;
 mod repository;
+mod utils;
 
 use warp::Filter;
 use std::io::Read;
@@ -121,7 +122,7 @@ fn load_public_key() -> String {
 }
 
 fn init_log() {
-    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
+    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "debug");
     env_logger::Builder::from_env(env)
         .format(|buf, record| {
             let level = { buf.default_styled_level(record.level()) };
@@ -165,6 +166,7 @@ async fn main() {
         .or(filters::profile())
         .or(filters::profiles())
         .or(filters::meta())
+        .or(filters::certificates())
         .with(log)
         .recover(handlers::err_handle);
 

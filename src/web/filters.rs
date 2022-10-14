@@ -80,3 +80,11 @@ pub fn meta() -> impl Filter<Extract=impl Reply, Error=Rejection> + Clone {
         .and(warp::get())
         .and_then(handlers::meta)
 }
+
+/// POST /minecraftservices/player/certificates
+pub fn certificates() -> impl Filter<Extract=impl Reply, Error=Rejection> + Clone {
+    warp::path!("minecraftservices" / "player" / "certificates")
+        .and(warp::post())
+        .and(warp::header::<String>("Authorization"))
+        .and_then(handlers::certificates)
+}
