@@ -1,5 +1,6 @@
 use base64::encode;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use log::debug;
 use rsa::pkcs1v15::SigningKey;
 use sha1::Sha1;
 use signature::{Signature, Signer};
@@ -24,9 +25,11 @@ pub fn decode_token(token: &str) -> Result<AccessClaims, CustomError> {
         &DecodingKey::from_secret(CONFIG.secret.as_ref()),
         &Validation::new(Algorithm::HS256)) {
         Ok(val) => {
+            debug!("Decode token successfully: {:#?}", val.claims);
             Ok(val.claims)
         }
-        Err(_) => {
+        Err(err) => {
+            debug!("Decode token error: {}", err);
             Err(CustomError::ForbiddenOperationException(StatusCode::FORBIDDEN, "Invalid token.".to_string()))
         }
     }

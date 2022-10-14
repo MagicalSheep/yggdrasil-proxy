@@ -303,8 +303,9 @@ pub async fn certificates(token: String) -> Result<impl Reply, Rejection> {
             return reject!(CustomError::HttpException(StatusCode::NOT_FOUND, "enable_profile_key is not enabled".to_string()));
         }
     }
-    if let Err(_) = decode_token(&token[7..token.len() - 1]) {
-        // Work as Mojang
+    // Work as Mojang
+    if token.len() < 7 { return Ok(warp::reply::with_status(warp::reply::json(&String::new()), StatusCode::NO_CONTENT)); }
+    if let Err(_) = decode_token(&token[7..token.len()]) {
         return Ok(warp::reply::with_status(warp::reply::json(&String::new()), StatusCode::NO_CONTENT));
     }
 
