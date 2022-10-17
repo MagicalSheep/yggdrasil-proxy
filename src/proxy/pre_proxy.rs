@@ -177,6 +177,7 @@ pub async fn profiles_pre_proxy(request: Vec<String>) -> Result<HashMap<String, 
         }
     }
     for (name, res) in c_results {
+        // TODO: Logic bug
         match res {
             None => {
                 if CONFIG.enable_master_slave_mode {
