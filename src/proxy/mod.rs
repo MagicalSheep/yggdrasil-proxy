@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::CONFIG;
 use crate::model::errors::CustomError;
 use crate::model::{Meta, Profile, Property};
-use crate::repository::{find_by_backend_and_uuid, find_by_uuid, save_profile};
+use crate::repository::{find_by_backend_and_uuid, save_profile};
 use crate::utils::signature;
 
 /// Validate signature from backend server
@@ -91,11 +91,15 @@ async fn re_signature(src_backend: &str, properties: Option<Vec<Property>>) -> O
 /// Translate the profile from a specific backend server into the profile that the proxy server controls.
 ///
 /// - Profile name will be renamed to `{backend_server_id}_{username}`.
-/// - Profile UUID will not changed if the database of proxy server doesn't have this record or
-/// using version 4 UUID to generate a new uuid if it has existed.
+/// - Profile UUID will be replaced by a new version 4 UUID.
 /// - Profile properties will be resigned signature using the proxy server private key
 /// for all properties that the signature exists.
+///
+/// However, if src_backend is the main server, this function will return its origin UUID and name value.
+/// Although its value in the database has been changed.
 pub async fn translate(src_backend: &str, profile: Profile) -> Result<Profile, CustomError> {
+    let is_need_to_trans = !CONFIG.enable_master_slave_mode || CONFIG.main.ne(src_backend);
+
     // backend server id and uuid can decide a profile
     // note: backend server id and name cannot decide a profile because user can rename profile
     let res = find_by_backend_and_uuid(src_backend, &profile.id).await;
@@ -117,25 +121,31 @@ pub async fn translate(src_backend: &str, profile: Profile) -> Result<Profile, C
             return Err(CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err)));
         }
         return Ok(Profile {
-            id: row.uuid,
-            name: name.clone(),
+            id: if is_need_to_trans { row.uuid } else { profile.id },
+            name: if is_need_to_trans { name } else { profile.name },
             properties: re_signature(src_backend, profile.properties).await,
         });
     }
 
     // no record, to create one, and assign the proxy server UUID for it
 
-    // check whether backend server UUID can be used directly or not,
-    // as no the same UUID in proxy server database so far.
-    let check = find_by_uuid(&profile.id).await;
-    if let Err(err) = check {
-        return Err(CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err)));
-    }
-    let check = check.unwrap();
-    let uuid = match check {
-        None => { profile.id.clone() } // use backend server UUID directly
-        Some(_) => { Uuid::new_v4().to_string().replace("-", "") } // generate a new UUID
-    };
+    // // check whether backend server UUID can be used directly or not,
+    // // as no the same UUID in proxy server database so far.
+    // let check = find_by_uuid(&profile.id).await;
+    // if let Err(err) = check {
+    //     return Err(CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, format!("{}", err)));
+    // }
+    // let check = check.unwrap();
+    // let uuid = match check {
+    //     None => { profile.id.clone() } // use backend server UUID directly
+    //     Some(_) => { Uuid::new_v4().to_string().replace("-", "") } // generate a new UUID
+    // };
+
+    // no matter what type of creation it is, just using Version 4 UUID.
+    // if src_backend is a main server, then return its src_uuid.
+    // and if it doesn't enable the main server prefix, return src_name as well.
+    let uuid = Uuid::new_v4().to_string().replace("-", "");
+
     // insert a new profile record into database
     let record = crate::entity::profiles::ActiveModel {
         id: ActiveValue::NotSet,
@@ -150,8 +160,8 @@ pub async fn translate(src_backend: &str, profile: Profile) -> Result<Profile, C
     }
 
     Ok(Profile {
-        id: uuid,
-        name,
+        id: if is_need_to_trans { uuid } else { profile.id },
+        name: if is_need_to_trans { name } else { profile.name },
         properties: re_signature(src_backend, profile.properties).await,
     })
 }

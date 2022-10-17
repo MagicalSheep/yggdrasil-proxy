@@ -192,12 +192,11 @@ pub async fn join(request: JoinRequest) -> Result<impl Reply, Rejection> {
 }
 
 pub async fn has_join(query: JoinQuery) -> Result<impl Reply, Rejection> {
-    let config = &*CONFIG;
     let dst;
     let resp = match has_join_pre_proxy(query).await {
         Ok((d, queries)) => {
             dst = d;
-            let url = config.backends.get(&dst).unwrap();
+            let url = CONFIG.backends.get(&dst).unwrap();
             Client::new().get(format!("{}{}", url, HAS_JOIN)).query(&queries).send().await
         }
         Err(err) => { return reject!(err); }
@@ -227,7 +226,9 @@ pub async fn profile(uuid: String, query: ProfileQuery) -> Result<impl Reply, Re
             match CONFIG.backends.get(&dst) {
                 None => { return reject!(CustomError::HttpException(StatusCode::INTERNAL_SERVER_ERROR, "Invalid backend server".to_string())); }
                 Some(url) => {
-                    Client::new().get(format!("{}{}{}", url, PROFILE, uuid)).query(&queries).send().await
+                    let url = format!("{}{}{}", url, PROFILE, uuid);
+                    debug!("GET request to backend server: {}", url);
+                    Client::new().get(url).query(&queries).send().await
                 }
             }
         }

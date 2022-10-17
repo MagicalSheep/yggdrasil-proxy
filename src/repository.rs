@@ -67,6 +67,14 @@ pub async fn find_by_backend_and_uuid(backend_id: &str, src_uuid: &str) -> Resul
         .await
 }
 
+pub async fn find_by_src_name(src_name: &str) -> Result<Option<profiles::Model>, DbErr> {
+    let db = DB.get().unwrap();
+    Profiles::find()
+        .filter(profiles::Column::SrcName.eq(src_name))
+        .one(db)
+        .await
+}
+
 pub async fn find_by_name(name: &str) -> Result<Option<profiles::Model>, DbErr> {
     let db = DB.get().unwrap();
     Profiles::find()

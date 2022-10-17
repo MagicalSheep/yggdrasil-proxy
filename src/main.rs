@@ -94,10 +94,17 @@ fn load_config() -> Config {
     };
     let mut yaml_str = String::new();
     if let Err(err) = file.read_to_string(&mut yaml_str) { exit!(err); }
-    match serde_yaml::from_str(&yaml_str) {
+    let config = match serde_yaml::from_str::<Config>(&yaml_str) {
         Ok(res) => { res }
         Err(err) => { exit!(err); }
+    };
+    if config.backends.is_empty() {
+        exit!("Backend server cannot be empty");
     }
+    if !config.backends.contains_key(&config.main) {
+        exit!("Main server name is not in backend server list");
+    }
+    config
 }
 
 fn load_private_key() -> RsaPrivateKey {

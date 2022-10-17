@@ -121,6 +121,9 @@ pub struct Config {
     pub address: String,
     pub port: u16,
     pub backends: HashMap<String, String>,
+    pub main: String,
+    #[serde(rename = "enableMasterSlaveMode")]
+    pub enable_master_slave_mode: bool,
 }
 
 impl From<ConfigMeta> for MetaProperty {
@@ -153,7 +156,7 @@ impl From<&Config> for Meta {
 impl Config {
     pub fn new() -> Config {
         let mut backends = HashMap::new();
-        backends.insert("l-skin".to_string(), "https://littleskin.cn/api/yggdrasil".to_string());
+        backends.insert("ls".to_string(), "https://littleskin.cn/api/yggdrasil".to_string());
         backends.insert("example".to_string(), "https://example.com/api/yggdrasil".to_string());
         let mut skin_domains = vec![];
         skin_domains.push("littleskin.cn".to_string());
@@ -170,7 +173,7 @@ impl Config {
                 legacy_skin_api: Some(false),
                 no_mojang_namespace: Some(false),
                 enable_mojang_anti_features: Some(false),
-                enable_profile_key: Some(false),
+                enable_profile_key: Some(true),
                 username_check: Some(false),
                 skin_domains,
             },
@@ -179,6 +182,8 @@ impl Config {
             address: "0.0.0.0".to_string(),
             port: 8080,
             backends,
+            main: "ls".to_string(),
+            enable_master_slave_mode: true
         }
     }
 }
